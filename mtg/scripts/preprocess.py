@@ -1,13 +1,21 @@
 import argparse
 from mtg.obj.expansion import get_expansion_obj_from_name
 import pickle
+import os
 
 
 def main():
+    # check expansion filepath ahead of time
+    if not os.path.exists(FLAGS.expansion_fname):
+        print("Error: Expansion file does not exist:", FLAGS.expansion_fname)
+        return
+        
     EXPANSION = get_expansion_obj_from_name(FLAGS.expansion)
     expansion = EXPANSION(bo1=FLAGS.game_data, draft=FLAGS.draft_data, ml_data=True)
     with open(FLAGS.expansion_fname, "wb") as f:
         pickle.dump(expansion, f)
+
+    print("\nExpansion data stored in:", FLAGS.expansion_fname)
 
 
 if __name__ == "__main__":

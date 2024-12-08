@@ -72,7 +72,7 @@ class CardSet:
         df["idx"] = df["name"].apply(lambda x: name_to_id[x])
         return df
 
-    def scryfall_modifications(self, df):
+    def scryfall_modifications(self, df: pd.DataFrame):
         if "card_faces" in df.columns:
             df = df.apply(scry_utils.merge_card_faces, axis=1)
         df["produces_for_splash"] = df.apply(scry_utils.produce_for_splash, axis=1)
