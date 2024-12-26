@@ -66,13 +66,13 @@ class DraftBot(tf.Module):
         #     because we don't want to store the expansion object (it's big), and in
         #     case we lose it, we need to be able to initialize a new one with the
         #     same exact card to id mappings for proper inference.
-        self.idx_to_name = expansion.get_mapping("idx", "name", include_basics=False)
+        self.idx_to_name = expansion.get_mapping("idx", "name", include_basics=True)
         self.n_cards = len(self.idx_to_name)
         # self.t is the number of picks in a draft
         self.t = expansion.t
         # the first five elements will be card data on basics, which is irrelevant
         #     for drafting, so we get rid of them
-        self.card_data = expansion.card_data_for_ML[5:]
+        self.card_data = expansion.card_data_for_ML
         self.emb_dim = tf.Variable(emb_dim, dtype=tf.float32, trainable=False, name="emb_dim")
         self.dropout = emb_dropout
         # positional embedding allows deviation given temporal context
@@ -378,7 +378,7 @@ class DraftBot(tf.Module):
         model_loc = os.path.join(location, "model")
         tf.saved_model.save(self, model_loc)
         data_loc = os.path.join(location, "attrs.pkl")
-        with open(data_loc, "wb") as f:
+        with open(data_loc, "w+b") as f:
             attrs = {
                 "t": self.t,
                 "idx_to_name": self.idx_to_name,

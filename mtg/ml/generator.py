@@ -6,12 +6,13 @@ import tensorflow as tf
 from mtg.ml.utils import importance_weighting
 from tensorflow.keras.utils import Sequence
 
+ALL_BASICS = ["plains", "island", "swamp", "mountain", "forest"]
 
 class MTGDataGenerator(Sequence):
     def __init__(
         self,
-        data,
-        cards,
+        data: pd.DataFrame,
+        cards: pd.DataFrame,
         card_col_prefixes,
         batch_size=32,
         shuffle=True,
@@ -19,6 +20,8 @@ class MTGDataGenerator(Sequence):
         exclude_basics=True,
         store_basics=False,
     ):
+        print("Data Cols:", data.dtypes.to_string())
+
         self.cards = cards.sort_values(by="idx", ascending=True)
         self.card_col_prefixes = card_col_prefixes
         self.exclude_basics = exclude_basics
@@ -26,6 +29,10 @@ class MTGDataGenerator(Sequence):
         if self.exclude_basics:
             self.cards = self.cards.iloc[5:, :]
             self.cards["idx"] = self.cards["idx"] - 5
+            print("Data before dropping basics:", data)
+            data = data.drop(data[data["pick"].isin(ALL_BASICS)].index)
+            print("Data after dropping basics:", data)
+            # data.reset_index
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.to_fit = to_fit
@@ -61,9 +68,8 @@ class MTGDataGenerator(Sequence):
 
     def generate_global_data(self, data):
         self.all_cards = [col.split("_", 1)[-1] for col in data.columns if col.startswith(self.card_col_prefixes[0])]
-        basics = ["plains", "island", "swamp", "mountain", "forest"]
         if self.exclude_basics:
-            exclude_cards = basics
+            exclude_cards = ALL_BASICS
         else:
             exclude_cards = []
         for prefix in self.card_col_prefixes:
@@ -75,7 +81,7 @@ class MTGDataGenerator(Sequence):
             ]
             setattr(self, prefix, data[cols].values)
             if self.store_basics:
-                basic_cols = [col for col in data.columns if any([x == col[prefix_size:] for x in basics])]
+                basic_cols = [col for col in data.columns if any([x == col[prefix_size:] for x in ALL_BASICS])]
                 setattr(self, prefix + "_basics", data[basic_cols].values)
         if "ml_weights" in data.columns:
             self.weights = data["ml_weights"].values
@@ -125,7 +131,7 @@ class DraftGenerator(MTGDataGenerator):
         self.size = len(self.draft_ids)
         self.reset_indices()
 
-    def generate_global_data(self, data):
+    def generate_global_data(self, data: pd.DataFrame):
         self.draft_ids = data["draft_id"].unique()
         self.t = data["position"].max() + 1
         data = data.set_index(["draft_id", "position"])
@@ -133,11 +139,13 @@ class DraftGenerator(MTGDataGenerator):
         #       function. There is a difference in accessing .values instead of the dataframe
         #       directly. In the future, clean this up such that it can just call super
         self.all_cards = [col.split("_", 1)[-1] for col in data.columns if col.startswith(self.card_col_prefixes[0])]
-        basics = ["plains", "island", "swamp", "mountain", "forest"]
         if self.exclude_basics:
-            exclude_cards = basics
+            exclude_cards = ALL_BASICS
         else:
             exclude_cards = []
+
+        print("Excluded cards:", exclude_cards)
+        
         for prefix in self.card_col_prefixes:
             prefix_size = len(prefix + "_")
             cols = [
@@ -145,17 +153,26 @@ class DraftGenerator(MTGDataGenerator):
                 for col in data.columns
                 if col.startswith(prefix + "_") and not any([x == col[prefix_size:] for x in exclude_cards])
             ]
+
+            # print("prefix, cols:", prefix, cols)
+
             setattr(self, prefix, data[cols])
             if self.store_basics:
-                basic_cols = [col for col in data.columns if any([x == col[prefix_size:] for x in basics])]
+                basic_cols = [col for col in data.columns if any([x == col[prefix_size:] for x in ALL_BASICS])]
                 setattr(self, prefix + "_basics", data[basic_cols])
         if "ml_weights" in data.columns:
             self.weights = data["ml_weights"]
         else:
             self.weights = None
+
+        # print("card names:", self.cards["name"].to_string())
+
         name_to_idx_mapping = {
             k.split("//")[0].strip().lower(): v for k, v in self.cards.set_index("name")["idx"].to_dict().items()
         }
+
+        print("name to idx mapping:", name_to_idx_mapping)
+
         self.pick = data["pick"].apply(lambda x: name_to_idx_mapping[x])
         self.shifted_pick = self.pick.groupby(level=0).shift(1).fillna(self.n_cards)
         self.position = data["pack_number"] * (data["pick_number"].max() + 1) + data["pick_number"]
@@ -213,11 +230,11 @@ class DeckGenerator(MTGDataGenerator):
     def generate_data(self, indices):
         decks = self.deck[indices, :]
         sideboards = self.sideboard[indices, :]
-        basics = self.deck_basics[indices, :]
+        deck_basics = self.deck_basics[indices, :]
         if self.mask_decks:
             max_n_non_basics = np.max(decks.sum(axis=1))
             n = max_n_non_basics + 2
-            basics = np.repeat(basics[:, None, :], n, axis=1)
+            deck_basics = np.repeat(deck_basics[:, None, :], n, axis=1)
             masked_decks = self.create_masked_objects(decks, n=n)
             # this is set up so the first element in masked decks has an empty
             # deck to predict from the whole pool, and the last element has a fully
@@ -227,10 +244,10 @@ class DeckGenerator(MTGDataGenerator):
             cards_to_add = (decks[:, None, :] - masked_decks).astype(np.float32)
             modified_sideboards = (sideboards[:, None, :] + cards_to_add).astype(np.float32)
             X = (modified_sideboards, masked_decks)
-            Y = (basics.astype(np.float32), cards_to_add)
+            Y = (deck_basics.astype(np.float32), cards_to_add)
         else:
             X = (decks + sideboards).astype(np.float32)
-            Y = (basics.astype(np.float32), decks.astype(np.float32))
+            Y = (deck_basics.astype(np.float32), decks.astype(np.float32))
         if self.weights is not None:
             if self.mask_decks:
                 weights = self.weights[indices][:, None] * np.ones((len(indices), n))

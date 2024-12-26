@@ -462,6 +462,18 @@ class FDN(Expansion):
             idx_to_name=idx_to_name,
         )
 
+    def get_cards_from_scryfall(self):
+        fdn = CardSet([f"set=fdn",
+            "is:booster"])
+
+        # Get the special guests cards
+        fdn_spg = CardSet(["set=spg", "cn>=74", "cn<=83"])
+
+        all_cards = fdn.union(fdn_spg)
+        fdn.cards = all_cards
+
+        return fdn.to_dataframe()
+
     @property
     def types(self):
         types = super().types

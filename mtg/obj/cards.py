@@ -29,13 +29,15 @@ class CardSet:
             self.search_q += urllib.parse.quote(query_args)
         else:
             self.search_q += urllib.parse.quote(
-                " & ".join([query for query in query_args])
-            )
+                " & ".join([query for query in query_args]))
         response = requests.get(self.search_q)
         self._json = response.json()
         self.cards = set()
         self._build_card_list_query()
         self._build_card_list_json(json_files)
+
+        print("Scryfall query:", urllib.parse.unquote(self.search_q))
+        print("Cards obtained from scryfall:", len(self.cards))
 
     def _build_card_list_query(self):
         """
