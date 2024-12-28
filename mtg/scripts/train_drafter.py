@@ -17,8 +17,7 @@ def main():
         id_col="draft_id",
         train_batch_size=FLAGS.batch_size,
         generator=DraftGenerator,
-        include_val=True,
-        exclude_basics=False
+        include_val=True
     )
 
     model = DraftBot(

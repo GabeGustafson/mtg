@@ -21,6 +21,7 @@ class MTGDataGenerator(Sequence):
         store_basics=False,
     ):
         print("Data Cols:", data.dtypes.to_string())
+        print("Picks:", data["pick"])
 
         self.cards = cards.sort_values(by="idx", ascending=True)
         self.card_col_prefixes = card_col_prefixes
@@ -29,10 +30,6 @@ class MTGDataGenerator(Sequence):
         if self.exclude_basics:
             self.cards = self.cards.iloc[5:, :]
             self.cards["idx"] = self.cards["idx"] - 5
-            print("Data before dropping basics:", data)
-            data = data.drop(data[data["pick"].isin(ALL_BASICS)].index)
-            print("Data after dropping basics:", data)
-            # data.reset_index
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.to_fit = to_fit

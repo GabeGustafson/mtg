@@ -1,4 +1,4 @@
-EXPANSION=FDN
+EXPANSION=DMU
 
 DATA_DIR=~/"General/Learning/Cloning/mtg/Data/"
 MODELS_DIR="${DATA_DIR}Models/"

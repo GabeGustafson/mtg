@@ -480,7 +480,7 @@ class FDN(Expansion):
         return types
 
 
-EXPANSIONS = [FDN]
+EXPANSIONS = [VOW, SNC, DMU, BRO, FDN]
 
 
 def get_expansion_obj_from_name(expansion):
